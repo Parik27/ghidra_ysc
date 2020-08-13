@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<language_definitions>
+    <language processor="YSC"
+              endian="little"
+              size="32"
+              variant="default"
+              version="1.0"
+              slafile="ysc.sla"
+              processorspec="ysc.pspec"
+              id="ysc:4:default">
+        <description>RAGE:YSC</description>
+        <compiler name="default" spec="ysc.cspec" id="default"/>
+    </language>
+</language_definitions>

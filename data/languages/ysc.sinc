@@ -1,0 +1,724 @@
+define token opbyte (8)
+   opcode = (0, 7)
+   immop = (0, 7)
+;
+
+define token data8 (8)
+   imm8		= (0,7)
+   imm8_2		= (0,7)
+   imm8_3		= (0,7)
+   sign8	= (7,7)
+   simm8	= (0,7) signed
+
+   nativeArgs   = (2, 7)
+   nativeRet   = (0, 1)
+;
+
+define token data16 (16)
+   timm4        = (12,15)
+   imm16        = (0,15)
+   sign16		= (15,15)
+   simm16		= (0,15) signed
+;
+
+define token data24 (24)
+   imm24        = (0,23)
+;
+
+define token data32 (32)
+   imm32        = (0,31)
+   simm32       = (0,31) signed
+;
+
+RelAddr16: reloc is simm16 [ reloc = inst_next + simm16; ] { export *:4 reloc; }
+Addr24: imm24 is imm24 { export *:4 imm24; }
+
+Static8: static8 is imm8 [ static8 = imm8 * 4; ] { local tmp:4 = STO + static8; export *[ram]:4 tmp; }
+Static16: static16 is imm16 [ static16 = imm16 * 4; ] { local tmp:4 = STO + static16; export *[ram]:4 tmp; }
+Static8P: static8 is imm8 [ static8 = imm8 * 4; ] { local tmp:4 = STO + static8; export tmp; }
+Static16P: static16 is imm16 [ static16 = imm16 * 4; ] { local tmp:4 = STO + static16; export tmp; }
+
+Global24: global24 is imm24 [ global24 = imm24 * 4; ] { local tmp:4 = GLO + global24; export *[ram]:4 tmp; }
+Global24P: global24p is imm24 [ global24p = imm24 * 4; ] { local tmp:4 = GLO + global24p; export tmp; }
+
+Global16: global16 is imm16 [ global16 = imm16 * 4; ] { local tmp:4 = GLO + global16; export *[ram]:4 tmp; }
+Global16P: global16p is imm16 [ global16p = imm16 * 4; ] { local tmp:4 = GLO + global16p; export tmp; }
+
+NativeAddr: native16 is imm16 [native16 = ((imm16>>8&0xFFFF) | (imm16<<8&0xFFFF)) * 8;] { export *[ram]:4 native16; }
+
+Local8: local8 is imm8 [ local8 = imm8 * 4; ] { local tmp:4 = FP - local8 - 4; export *:4 tmp; }
+Local8P: local8 is imm8 [ local8 = imm8 * 4; ] { local tmp:4 = FP - local8 - 4; export tmp; }
+
+define pcodeop native;
+define pcodeop strcpy;
+define pcodeop memset;
+define pcodeop joaat;
+
+define pcodeop switchAssist;
+
+macro push32(val32) {
+	SP = SP - 4;
+	*:4 SP = val32; 
+}
+
+macro pop32(ret32) {
+	ret32 = *:4 SP;
+	SP = SP + 4; 
+}
+
+:NOP is opcode = 0 { }
+:IADD is opcode = 1 {
+      local tmp:4 = *:4 SP;
+      SP = SP + 4;
+      *SP:4 = *SP:4 + tmp;
+}
+:ISUB is opcode = 2 {
+      local tmp:4 = *:4 SP;
+      SP = SP + 4;
+      *SP:4 = *SP:4 - tmp;      
+}
+:IMUL is opcode = 3 {
+      local tmp:4 = *:4 SP;
+      SP = SP + 4;
+      *SP:4 = *SP:4 * tmp;
+}
+:IDIV is opcode = 4 {
+      local tmp:4 = *:4 SP;
+      SP = SP + 4;
+      *SP:4 = *SP:4 / tmp;
+}
+:IMOD is opcode = 5 {
+      local tmp:4 = *:4 SP;
+      SP = SP + 4;
+      *SP:4 = *SP:4 / tmp;
+}
+:INOT is opcode = 6 {
+      local a:4;
+      pop32(a);
+      push32(a == 0);
+}
+:INEG is opcode = 7 {
+      *SP:4 = *SP:4 * -1:4;
+}
+:IEQ is opcode = 8 {
+     local tmp:4 = *:4 SP;
+	SP = SP + 4;
+	*SP:4 = *SP:4 == tmp;
+}
+
+:INE is opcode = 9 {
+     local tmp:4 = *:4 SP;
+     SP = SP + 4;
+     *SP:4 = *SP:4 != tmp;
+}
+:IGT is opcode = 10 {
+	local tmp:4 = *:4 SP;
+	SP = SP + 4;
+	*SP:4 = tmp < *SP:4;
+}
+:IGE is opcode = 11 {
+	local tmp:4 = *:4 SP;
+	SP = SP + 4;
+	*SP:4 = tmp <= *SP:4;
+}
+:ILT is opcode = 12 {
+	local tmp:4 = *:4 SP;
+	SP = SP + 4;
+	*SP:4 = tmp > *SP:4;
+}
+:ILE is opcode = 13 {
+	local tmp:4 = *:4 SP;
+	SP = SP + 4;
+	*SP:4 = tmp >= *SP:4;
+}
+:FADD is opcode = 14 {
+	local tmp:4 = *:4 SP;
+	SP = SP + 4;
+	*SP:4 = tmp f+ *SP:4;
+}
+:FSUB is opcode = 15 {
+	local tmp:4 = *:4 SP;
+	SP = SP + 4;
+	*SP:4 = tmp f- *SP:4;
+}
+:FMUL is opcode = 16 {
+	local tmp:4 = *:4 SP;
+	SP = SP + 4;
+	*SP:4 = tmp f* *SP:4;
+}
+:FDIV is opcode = 17 {
+	local tmp:4 = *:4 SP;
+	SP = SP + 4;
+	*SP:4 = tmp f/ *SP:4;
+}
+:FMOD is opcode = 18 {
+      	local tmp:4 = *:4 SP;
+	SP = SP + 4;
+	*SP:4 = tmp % *SP:4;
+}
+
+:FNEG is opcode = 19 {
+	local tmp:4 = *:4 SP;
+	
+	tmp = tmp f* int2float(-1:4);
+	*SP:4 = tmp;
+}
+:FEQ is opcode = 20 {
+	local tmp:4 = *:4 SP;
+	SP = SP + 4;
+	*SP:4 = tmp f== *SP:4;
+}
+:FNE is opcode = 21 {
+	local tmp:4 = *:4 SP;
+	SP = SP + 4;
+	*SP:4 = tmp f!= *SP:4;
+}
+:FGT is opcode = 22 {
+	local tmp:4 = *:4 SP;
+	SP = SP + 4;
+	*SP:4 = tmp f< *SP:4;
+}
+:FGE is opcode = 23 {
+	local tmp:4 = *:4 SP;
+	SP = SP + 4;
+	*SP:4 = tmp f<= *SP:4;
+}
+:FLT is opcode = 24 {
+	local tmp:4 = *:4 SP;
+	SP = SP + 4;
+	*SP:4 = tmp f> *SP:4;
+}
+:FLE is opcode = 25 {
+	local tmp:4 = *:4 SP;
+	SP = SP + 4;
+	*SP:4 = tmp f>= *SP:4;
+}
+:VADD is opcode = 26 {
+    *:4 SP+20 = *:4 SP+20 f+ *:4 SP+8;
+    *:4 SP+16 = *:4 SP+16 f+ *:4 SP+4;
+    *:4 SP+12 = *:4 SP+12 f+ *:4 SP;
+    SP = SP + 12;
+
+}
+:VSUB is opcode = 27 {
+    *:4 SP+20 = *:4 SP+20 f- *:4 SP+8;
+    *:4 SP+16 = *:4 SP+16 f- *:4 SP+4;
+    *:4 SP+12 = *:4 SP+12 f- *:4 SP;
+    SP = SP + 12;
+}
+:VMUL is opcode = 28 {
+    *:4 SP+20 = *:4 SP+20 f* *:4 SP+8;
+    *:4 SP+16 = *:4 SP+16 f* *:4 SP+4;
+    *:4 SP+12 = *:4 SP+12 f* *:4 SP;
+    SP = SP + 12;
+}
+:VDIV is opcode = 29 {
+    *:4 SP+20 = *:4 SP+20 f/ *:4 SP+8;
+    *:4 SP+16 = *:4 SP+16 f/ *:4 SP+4;
+    *:4 SP+12 = *:4 SP+12 f/ *:4 SP;
+    SP = SP + 12;
+}
+:VNEG is opcode = 30 {
+    *:4 SP+8 = int2float(-1:4) f* *:4 SP+8;
+    *:4 SP+4 = int2float(-1:4) f* *:4 SP+4;
+    *:4 SP = int2float(-1:4) f* *:4 SP;
+
+}
+:IAND is opcode = 31 {
+      local tmp:4 = *:4 SP;
+      SP = SP + 4;
+      *SP:4 = *SP:4 & tmp;
+}
+:IOR is opcode = 32 {
+      local tmp:4 = *:4 SP;
+      SP = SP + 4;
+      *SP:4 = *SP:4 & tmp;
+}
+:IXOR is opcode = 33 {
+      local tmp:4 = *:4 SP;
+      SP = SP + 4;
+      *SP:4 = *SP:4 ^ tmp;
+}
+:I2F is opcode = 34 {
+	local tmp:4 = *SP:4;
+	tmp = int2float(tmp);
+	
+	*SP:4 = tmp;
+}
+:F2I is opcode = 35 {
+	local tmp:4 = *SP:4;
+	tmp = floor(tmp);
+	
+	*SP:4 = tmp;
+}
+:F2V is opcode = 36 {
+      local tmp:4 = *SP:4;
+      *SP:4 = tmp;
+      *:4 SP - 4 = tmp;
+      *:4 SP - 8 = tmp;
+      SP = SP - 8;
+}
+:PUSH_CONST_U8 imm8 is opcode = 37; imm8 {
+      push32(imm8:4);
+}
+:PUSH_CONST_U8_U8 imm8, imm8_2 is opcode = 38; imm8; imm8_2 {
+      push32(imm8:4);
+      push32(imm8_2:4);
+}
+
+:PUSH_CONST_U8_U8_U8 imm8, imm8_2, imm8_3 is opcode = 39; imm8; imm8_2; imm8_3 {
+      push32(imm8:4);
+      push32(imm8_2:4);
+      push32(imm8_3:4);
+}
+:PUSH_CONST_U32 imm32 is opcode = 40; imm32 {
+      push32(imm32:4);
+}
+:PUSH_CONST_F imm32 is opcode = 41; imm32 {
+      local tmp:4 = float2float(imm32:4);
+      push32 (tmp);
+}
+:DUP is opcode = 42 {
+     *:4 SP - 4 = *SP:4;
+     SP = SP - 4;
+}
+:DROP is opcode = 43 {
+     SP = SP + 4;
+}
+:NATIVE nativeArgs, imm16 is opcode = 44; nativeArgs & nativeRet = 0; imm16 {
+	call [NO + ((imm16>>8&0xFFFF) | (imm16<<8&0xFFFF)) * 8];
+}
+:NATIVE nativeArgs, imm16 is opcode = 44; nativeArgs & nativeRet; imm16 {
+	call [NO + ((imm16>>8&0xFFFF) | (imm16<<8&0xFFFF)) * 8];
+	push32 (RV:4);
+}
+
+enterskip: reloc is imm8 [ reloc=inst_next + imm8; ] { export *:4 reloc; } 
+:ENTER imm8, imm16 is opcode = 45; imm8; imm16; enterskip {
+       FP = SP + (imm8:4 * 4);
+       SP = SP - (imm16:4 * 4);
+}
+
+:LEAVE imm8, imm8_2 is opcode = 46; imm8; imm8_2 {
+      RV = *:4 (SP + ((imm8_2:4 - 1) * 4));
+      SP = FP;
+      return [0:4];
+}
+
+:LEAVE imm8 is opcode = 46; imm8; imm8_2 = 0 {
+      SP = FP;
+      return [0:4];
+}
+
+:LOAD is opcode = 47 {
+        local ptr:4 = *:4 SP;
+	ptr = *[ram]:4 ptr;
+	*:4 SP = ptr;
+}
+:STORE is opcode = 48 {
+	local ptr:4;
+	local val:4;
+	
+	pop32(ptr);
+	pop32(val);
+	
+	*[ram]:4 ptr = val;
+}
+
+:STORE_REV is opcode = 49 {
+	local ptr:4;
+	local val:4;
+	
+	pop32(ptr);
+	pop32(val);
+	
+	*[ram]:4 ptr = val;
+}
+:LOAD_N is opcode = 50 {
+	local numItems:4;
+	local ptr:4;
+
+	pop32 (ptr);
+	pop32 (numItems);
+
+	<loopstart>
+	if (numItems == 0) goto <loopend>;
+	
+	*:4 (SP - (numItems * 4)) = *:4 ptr + numItems * 4;
+	numItems = numItems - 1;
+
+	goto <loopstart>;
+	<loopend>
+}
+:STORE_N is opcode = 51 {
+	local numItems:4;
+	local ptr:4;
+
+	pop32 (ptr);
+	pop32 (numItems);
+
+	<loopstart>
+	if (numItems == 0) goto <loopend>;
+	
+	*:4 ptr + numItems * 4 = *:4 (SP - (numItems * 4));
+	numItems = numItems - 1;
+
+	goto <loopstart>;
+	<loopend>
+}
+:ARRAY_U8 imm8 is opcode = 52; imm8 {
+	local index:4;
+	local ptr:4;
+
+	pop32 (ptr);
+	pop32 (index);
+
+	push32 (ptr + imm8 * index * 8);
+}
+:ARRAY_U8_LOAD imm8 is opcode = 53; imm8 {
+	local index:4;
+	local ptr:4;
+
+	pop32 (ptr);
+	pop32 (index);
+
+	push32 (*:4 (ptr + imm8 * index * 8));
+}
+:ARRAY_U8_STORE imm8 is opcode = 54; imm8 {
+	local val:4;	
+	local index:4;
+	local ptr:4;
+
+
+	pop32 (ptr);
+	pop32 (index);
+	pop32 (val);
+
+	*[ram]:4 (ptr + imm8 * index) = val;
+}
+:LOCAL_U8 Local8P is opcode = 55; Local8P {
+	  push32 (Local8P);
+}
+:LOCAL_U8_LOAD Local8 is opcode = 56; Local8 {
+	push32 (Local8);
+}
+:LOCAL_U8_STORE Local8 is opcode = 57; Local8 {
+	local tmp:4;
+	pop32 (tmp);
+
+	Local8 = tmp;
+}
+:STATIC_U8 Static8P is opcode = 58; Static8P {
+	push32(Static8P);
+}
+:STATIC_U8_LOAD Static8 is opcode = 59; Static8 {
+	push32(Static8);
+}
+:STATIC_U8_STORE Static8 is opcode = 60; Static8 {
+	local value:4;
+	pop32 (value);
+
+	Static8 = value;
+}
+:IADD_U8 imm8 is opcode = 61; imm8 {
+	*:4 SP = *:4 SP + imm8:4;
+}
+:IMUL_U8 imm8 is opcode = 62; imm8 {
+	*:4 SP = *:4 SP * imm8:4;
+}
+:IOFFSET is opcode = 63 unimpl
+:IOFFSET_U8 imm8 is opcode = 64; imm8 {
+        local ptr:4;
+	pop32 (ptr);
+
+	push32 (ptr + 8 * imm8);
+}
+:IOFFSET_U8_LOAD imm8 is opcode = 65; imm8 {
+	local ptr:4;
+	pop32 (ptr);
+
+	push32 (*[ram]:4 (ptr + 8 * imm8));
+}
+:IOFFSET_U8_STORE imm8 is opcode = 66; imm8 {
+	local val:4;
+	local ptr:4;
+	pop32 (ptr);
+	pop32 (val);
+
+	*[ram]:4 (ptr + 8 * imm8) = val;
+}
+:PUSH_CONST_S16 simm16 is opcode = 67; simm16 {
+	push32(simm16:4);
+}
+:IADD_S16 simm16 is opcode = 68; simm16 {
+	*:4 SP = *:4 SP + simm16:4;
+}
+:IMUL_S16 simm16 is opcode = 69; simm16 unimpl
+:IOFFSET_S16 simm16 is opcode = 70; simm16 {
+       local ptr:4;
+	pop32 (ptr);
+
+	push32 (ptr + 8 * simm16);
+}
+:IOFFSET_S16_LOAD simm16 is opcode = 71; simm16 {
+	local ptr:4;
+	pop32 (ptr);
+
+	push32 (*[ram]:4 (ptr + 8 * simm16));
+}
+:IOFFSET_S16_STORE simm16 is opcode = 72; simm16 {
+	local val:4;
+	local ptr:4;
+	pop32 (ptr);
+	pop32 (val);
+
+	*[ram]:4 (ptr + 8 * simm16) = val;
+}
+:ARRAY_U16 imm16 is opcode = 73; imm16 {
+	local index:4;
+	local ptr:4;
+
+	pop32 (ptr);
+	pop32 (index);
+
+	push32 (ptr + imm16 * index * 8);
+}
+:ARRAY_U16_LOAD imm16 is opcode = 74; imm16 unimpl
+:ARRAY_U16_STORE imm16 is opcode = 75; imm16 unimpl
+:LOCAL_U16 imm16 is opcode = 76; imm16 unimpl
+:LOCAL_U16_LOAD imm16 is opcode = 77; imm16 unimpl
+:LOCAL_U16_STORE imm16 is opcode = 78; imm16 unimpl
+:STATIC_U16 Static16P is opcode = 79; Static16P {
+	push32(Static16P);
+}
+:STATIC_U16_LOAD Static16 is opcode = 80; Static16 {
+	push32(Static16);
+}
+:STATIC_U16_STORE Static16 is opcode = 81; Static16 {
+	local value:4;
+	pop32 (value);
+
+	Static16 = value;
+}
+:GLOBAL_U16 Global16P is opcode = 82; Global16P {
+      push32(Global16P:4);
+}
+:GLOBAL_U16_LOAD Global16 is opcode = 83; Global16 {
+      push32(Global16);
+}
+:GLOBAL_U16_STORE Global16 is opcode = 84; Global16 {
+	local value:4;
+	pop32 (value);
+
+	Global16 = value;
+}
+
+
+:J RelAddr16 is opcode = 85; RelAddr16 {
+	goto RelAddr16;
+}
+:JZ RelAddr16 is opcode = 86; RelAddr16 {
+	local tmp:1;
+	pop32(tmp);
+	if(tmp == 0) goto RelAddr16;
+}
+:IEQ_JZ RelAddr16 is opcode = 87; RelAddr16 {
+	local a:4;
+	local b:4;
+	pop32 (a);
+	pop32 (b);
+	
+	if (a == b) goto RelAddr16;
+}
+
+:INE_JZ RelAddr16 is opcode = 88; RelAddr16 {
+	local a:4;
+	local b:4;
+	pop32 (a);
+	pop32 (b);
+	
+	if (a != b) goto RelAddr16;
+}
+:IGT_JZ RelAddr16 is opcode = 89; RelAddr16 {
+	local a:4;
+	local b:4;
+	pop32 (a);
+	pop32 (b);
+	
+	if (a > b) goto RelAddr16;
+
+}
+:IGE_JZ RelAddr16 is opcode = 90; RelAddr16 {
+	local a:4;
+	local b:4;
+	pop32 (a);
+	pop32 (b);
+	
+	if (a >= b) goto RelAddr16;
+
+}
+:ILT_JZ RelAddr16 is opcode = 91; RelAddr16 {
+	local a:4;
+	local b:4;
+	pop32 (a);
+	pop32 (b);
+	
+	if (a < b) goto RelAddr16;
+}
+:ILE_JZ RelAddr16 is opcode = 92; RelAddr16 {
+    	local a:4;
+	local b:4;
+	pop32 (a);
+	pop32 (b);
+	
+	if (a <= b) goto RelAddr16;
+}
+:CALL Addr24 is opcode = 93; Addr24 {
+      call Addr24;
+      push32 (RV:4);
+}
+:GLOBAL_U24 Global24P is opcode = 94; Global24P {
+      push32(Global24P:4);
+}
+:GLOBAL_U24_LOAD Global24 is opcode = 95; Global24 {
+      push32(Global24);
+}
+:GLOBAL_U24_STORE Global24 is opcode = 96; Global24 {
+	local value:4;
+	pop32 (value);
+
+	Global24 = value;
+}
+
+:PUSH_CONST_U24 imm24 is opcode = 97; imm24 {
+        push32 (imm24:4);
+}
+
+switchskip: reloc is imm8 [ reloc = inst_next + imm8 * 6; ] { export *:4 reloc; }
+:SWITCH is opcode = 98; switchskip & imm8 {
+      # local counter:4 = imm8:4;
+      # local val:4 = *:4 SP;
+
+      # <loopstart>
+      # if (counter == 0) goto <loopend>;
+
+      # local id:4 = *:4 (inst_next + counter * 6);
+      # local dst:2 = *:2 ((inst_next + counter * 6) + 4);
+
+      # if (id == *:4 SP) goto <loopend>;
+
+      # counter = counter - 1;
+      # goto <loopstart>;
+      
+      # <loopend>
+      # SP = SP - 4;
+
+      local distance:4 = imm8 * 6;
+      local defaultPos:4 = inst_next + distance;
+      local temp:4 = inst_next;
+
+      address:4 = switchAssist( *:4 SP, imm8:4, defaultPos, temp, distance );
+      goto [ address ];
+}
+
+:STRING is opcode = 99 {
+	local index:4;
+	pop32(index); # index to the string
+
+	local tmp:4 = index + STRO;
+	push32 (tmp);
+}
+
+:STRINGHASH is opcode = 100 {
+	local strPtr:4;
+	pop32 (strPtr);
+
+	local hash:4 = joaat (strPtr);
+	push32(hash);
+}
+:TEXT_LABEL_ASSIGN_STRING imm8 is opcode = 101; imm8 {
+	local dst:4;
+	local src:4;
+	pop32(src);
+	pop32(dst);
+
+        strcpy(src, dst, imm8:4);
+}
+:TEXT_LABEL_ASSIGN_INT imm8 is opcode = 102; imm8 unimpl
+:TEXT_LABEL_APPEND_STRING imm8 is opcode = 103; imm8 unimpl
+:TEXT_LABEL_APPEND_INT imm8 is opcode = 104; imm8 unimpl
+:TEXT_LABEL_COPY is opcode = 105 {
+	local dst:4;
+	local src:4;
+	local val:4;
+	pop32(dst);
+	pop32(val);
+	pop32(src);
+	memset(dst, src, val);
+}
+:CATCH is opcode = 106 unimpl
+:THROW is opcode = 107 unimpl
+:CALLINDIRECT is opcode = 108 unimpl
+:PUSH_CONST_M1 is opcode = 109 {
+	push32(-1:4);
+}
+:PUSH_CONST_0 is opcode = 110 {
+	push32(0:4);
+}
+:PUSH_CONST_1 is opcode = 111 {
+	push32(1:4);
+}
+:PUSH_CONST_2 is opcode = 112 {
+	push32(2:4);
+}
+:PUSH_CONST_3 is opcode = 113 {
+	push32(3:4);
+}
+:PUSH_CONST_4 is opcode = 114 {
+	push32(4:4);
+}
+:PUSH_CONST_5 is opcode = 115 {
+	push32(5:4);
+}
+:PUSH_CONST_6 is opcode = 116 {
+	push32(6:4);
+}
+:PUSH_CONST_7 is opcode = 117 {
+	push32(7:4);
+}
+:PUSH_CONST_FM1 is opcode = 118 {
+        local tmp:4 = int2float(-1:4);
+        push32(tmp);
+}
+:PUSH_CONST_F0 is opcode = 119 {
+        local tmp:4 = int2float(0:4);
+        push32(tmp);
+}
+:PUSH_CONST_F1 is opcode = 120 {
+        local tmp:4 = int2float(1:4);
+        push32(tmp);
+}
+:PUSH_CONST_F2 is opcode = 121 {
+        local tmp:4 = int2float(2:4);
+        push32(tmp);
+}
+:PUSH_CONST_F3 is opcode = 122 {
+        local tmp:4 = int2float(3:4);
+        push32(tmp);
+}
+:PUSH_CONST_F4 is opcode = 123 {
+        local tmp:4 = int2float(4:4);
+        push32(tmp);
+}
+:PUSH_CONST_F5 is opcode = 124 {
+        local tmp:4 = int2float(5:4);
+        push32(tmp);
+}
+:PUSH_CONST_F6 is opcode = 125 {
+        local tmp:4 = int2float(6:4);
+        push32(tmp);
+}
+:PUSH_CONST_F7 is opcode = 126 {
+        local tmp:4 = int2float(7:4);
+        push32(tmp);
+}

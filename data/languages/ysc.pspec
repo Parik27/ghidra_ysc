@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<processor_spec>
+	<programcounter register="IP"/>
+	<default_symbols>
+		<symbol name="entry" address="ram:00000000" type="code" entry="true"/>
+	</default_symbols>
+	<register_data>
+		<register name="RV"/>
+		<register name="NO" hidden="true"/>
+		<register name="GLO" hidden="true"/>
+		<register name="STRO" hidden="true"/>
+		<register name="STO" hidden="true"/>
+	</register_data>
+
+	<jumpassist name="switchAssist">
+		<case_pcode>
+			<input name="index" size="4"/>
+			<input name="tableSize" size="4"/>
+			<input name="defaultAddr" size="4"/>
+			<input name="table" size="4"/>
+			<input name="distance" size="4"/>
+			<output name="finaladdr" size="4"/>
+			<body><![CDATA[
+			finaladdr = *(table + index * 6);
+			]]></body>      
+		</case_pcode>
+		<addr_pcode>
+			<input name="index" size="4"/>
+			<input name="tableSize" size="4"/>
+			<input name="defaultAddr" size="4"/>
+			<input name="table" size="4"/>
+			<input name="distance" size="4"/>
+			<output name="finaladdr" size="4"/>
+			<body><![CDATA[
+			finaladdr = *(table + index * 6 + 4);
+			finaladdr = table + (index + 1) * 6 + finaladdr[0,15];
+			]]></body>      
+		</addr_pcode>
+		<default_pcode>
+			<input name="index" size="4"/>
+			<input name="tableSize" size="4"/>
+			<input name="defaultAddr" size="4"/>
+			<input name="table" size="4"/>
+			<input name="distance" size="4"/>
+			<output name="finaladdr" size="4"/>
+			<body><![CDATA[
+			finaladdr = defaultAddr;
+			]]></body>      
+		</default_pcode>
+	</jumpassist>
+</processor_spec>

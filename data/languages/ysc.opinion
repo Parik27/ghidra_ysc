@@ -1,0 +1,5 @@
+<opinions>
+<constraint loader="RAGE Script Loader" compilerSpecId="default">
+	<constraint processor="ysc"  size="32" variant="default" />
+</constraint>
+</opinions>

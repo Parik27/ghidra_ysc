@@ -1,0 +1,11 @@
+define endian=little;
+define alignment=1;
+
+define space register  type=register_space  size=4;
+define space ram       type=ram_space       size=4 default;
+
+define register offset=0x00 size=4 [IP SP NP FP RV];
+define register offset=0x40 size=4 [STO STRO GLO];
+define register offset=0x20 size=4 [NO];
+
+@include "ysc.sinc"

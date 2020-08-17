@@ -2,7 +2,6 @@
 dist
 build
 bin
-lib
 os
 
 # compiled SLEIGH file

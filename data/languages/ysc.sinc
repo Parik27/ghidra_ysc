@@ -33,26 +33,34 @@ define token data32 (32)
 RelAddr16: reloc is simm16 [ reloc = inst_next + simm16; ] { export *:4 reloc; }
 Addr24: imm24 is imm24 { export *:4 imm24; }
 
-Static8: static8 is imm8 [ static8 = imm8 * 4; ] { local tmp:4 = STO + static8; export *[ram]:4 tmp; }
-Static16: static16 is imm16 [ static16 = imm16 * 4; ] { local tmp:4 = STO + static16; export *[ram]:4 tmp; }
-Static8P: static8 is imm8 [ static8 = imm8 * 4; ] { local tmp:4 = STO + static8; export tmp; }
-Static16P: static16 is imm16 [ static16 = imm16 * 4; ] { local tmp:4 = STO + static16; export tmp; }
+Static8: static8 is imm8 [ static8 = imm8 * 8; ] { local tmp:4 = STO + static8; export *[ram]:4 tmp; }
+Static16: static16 is imm16 [ static16 = imm16 * 8; ] { local tmp:4 = STO + static16; export *[ram]:4 tmp; }
+Static8P: static8 is imm8 [ static8 = imm8 * 8; ] { local tmp:4 = STO + static8; export tmp; }
+Static16P: static16 is imm16 [ static16 = imm16 * 8; ] { local tmp:4 = STO + static16; export tmp; }
 
-Global24: global24 is imm24 [ global24 = imm24 * 4; ] { local tmp:4 = GLO + global24; export *[ram]:4 tmp; }
-Global24P: global24p is imm24 [ global24p = imm24 * 4; ] { local tmp:4 = GLO + global24p; export tmp; }
+Global24: global24 is imm24 [ global24 = imm24 * 8; ] { local tmp:4 = GLO + global24; export *[ram]:4 tmp; }
+Global24P: global24p is imm24 [ global24p = imm24 * 8; ] { local tmp:4 = GLO + global24p; export tmp; }
 
-Global16: global16 is imm16 [ global16 = imm16 * 4; ] { local tmp:4 = GLO + global16; export *[ram]:4 tmp; }
-Global16P: global16p is imm16 [ global16p = imm16 * 4; ] { local tmp:4 = GLO + global16p; export tmp; }
+Global16: global16 is imm16 [ global16 = imm16 * 8; ] { local tmp:4 = GLO + global16; export *[ram]:4 tmp; }
+Global16P: global16p is imm16 [ global16p = imm16 * 8; ] { local tmp:4 = GLO + global16p; export tmp; }
 
 NativeAddr: native16 is imm16 [native16 = ((imm16>>8&0xFFFF) | (imm16<<8&0xFFFF)) * 8;] { export *[ram]:4 native16; }
 
 Local8: local8 is imm8 [ local8 = imm8 * 4; ] { local tmp:4 = FP - local8 - 4; export *:4 tmp; }
 Local8P: local8 is imm8 [ local8 = imm8 * 4; ] { local tmp:4 = FP - local8 - 4; export tmp; }
+Local16: local16 is imm16 [ local16 = imm16 * 4; ] { local tmp:4 = FP - local16 - 4; export *:4 tmp; }
+Local16P: local16 is imm16 [ local16 = imm16 * 4; ] { local tmp:4 = FP - local16 - 4; export tmp; }
+
 
 define pcodeop native;
 define pcodeop strcpy;
-define pcodeop memset;
+define pcodeop TEXT_COPY;
+define pcodeop TEXT_ASSIGN_STRING;
+define pcodeop TEXT_APPEND_STRING;
+define pcodeop TEXT_ASSIGN_INT;
+define pcodeop TEXT_APPEND_INT;
 define pcodeop joaat;
+define pcodeop memcpy;
 
 define pcodeop switchAssist;
 
@@ -329,26 +337,35 @@ enterskip: reloc is imm8 [ reloc=inst_next + imm8; ] { export *:4 reloc; }
 	local ptr:4;
 	local val:4;
 	
-	pop32(ptr);
 	pop32(val);
+	pop32(ptr);
 	
 	*[ram]:4 ptr = val;
 }
 :LOAD_N is opcode = 50 {
+
 	local numItems:4;
 	local ptr:4;
 
 	pop32 (ptr);
 	pop32 (numItems);
 
-	<loopstart>
-	if (numItems == 0) goto <loopend>;
-	
-	*:4 (SP - (numItems * 4)) = *:4 ptr + numItems * 4;
-	numItems = numItems - 1;
+	memcpy(SP, ptr, numItems * 4);
 
-	goto <loopstart>;
-	<loopend>
+	# numItems = numItems - 1;
+
+	# <loopstart>
+	# if (numItems s< 0) goto <loopend>;
+	
+	# *:4 (SP - numItems * 4) = *:4 (ptr + numItems * 4);
+	
+	# numItems = numItems - 1;
+
+	# goto <loopstart>;
+	# <loopend>
+
+	# SP = SP - (numItems * 4) + 4;
+	
 }
 :STORE_N is opcode = 51 {
 	local numItems:4;
@@ -357,14 +374,16 @@ enterskip: reloc is imm8 [ reloc=inst_next + imm8; ] { export *:4 reloc; }
 	pop32 (ptr);
 	pop32 (numItems);
 
-	<loopstart>
-	if (numItems == 0) goto <loopend>;
-	
-	*:4 ptr + numItems * 4 = *:4 (SP - (numItems * 4));
-	numItems = numItems - 1;
+	memcpy(ptr, SP, numItems * 4);
 
-	goto <loopstart>;
-	<loopend>
+	# <loopstart>
+	# if (numItems == 0) goto <loopend>;
+	
+	# *:4 ptr + numItems * 4 = *:4 (SP - (numItems * 4));
+	# numItems = numItems - 1;
+
+	# goto <loopstart>;
+	# <loopend>
 }
 :ARRAY_U8 imm8 is opcode = 52; imm8 {
 	local index:4;
@@ -394,7 +413,7 @@ enterskip: reloc is imm8 [ reloc=inst_next + imm8; ] { export *:4 reloc; }
 	pop32 (index);
 	pop32 (val);
 
-	*[ram]:4 (ptr + imm8 * index) = val;
+	*[ram]:4 (ptr + imm8 * index * 8) = val;
 }
 :LOCAL_U8 Local8P is opcode = 55; Local8P {
 	  push32 (Local8P);
@@ -426,7 +445,14 @@ enterskip: reloc is imm8 [ reloc=inst_next + imm8; ] { export *:4 reloc; }
 :IMUL_U8 imm8 is opcode = 62; imm8 {
 	*:4 SP = *:4 SP * imm8:4;
 }
-:IOFFSET is opcode = 63 unimpl
+:IOFFSET is opcode = 63 {
+	local offset:4;
+        local ptr:4;
+	pop32 (offset);
+	pop32 (ptr);
+
+	push32 (ptr + 8 * offset);
+}
 :IOFFSET_U8 imm8 is opcode = 64; imm8 {
         local ptr:4;
 	pop32 (ptr);
@@ -453,7 +479,9 @@ enterskip: reloc is imm8 [ reloc=inst_next + imm8; ] { export *:4 reloc; }
 :IADD_S16 simm16 is opcode = 68; simm16 {
 	*:4 SP = *:4 SP + simm16:4;
 }
-:IMUL_S16 simm16 is opcode = 69; simm16 unimpl
+:IMUL_S16 simm16 is opcode = 69; simm16 {
+	*:4 SP = *:4 SP * simm16:4;
+}
 :IOFFSET_S16 simm16 is opcode = 70; simm16 {
        local ptr:4;
 	pop32 (ptr);
@@ -483,11 +511,40 @@ enterskip: reloc is imm8 [ reloc=inst_next + imm8; ] { export *:4 reloc; }
 
 	push32 (ptr + imm16 * index * 8);
 }
-:ARRAY_U16_LOAD imm16 is opcode = 74; imm16 unimpl
-:ARRAY_U16_STORE imm16 is opcode = 75; imm16 unimpl
-:LOCAL_U16 imm16 is opcode = 76; imm16 unimpl
-:LOCAL_U16_LOAD imm16 is opcode = 77; imm16 unimpl
-:LOCAL_U16_STORE imm16 is opcode = 78; imm16 unimpl
+:ARRAY_U16_LOAD imm16 is opcode = 74; imm16 {
+	local index:4;
+	local ptr:4;
+
+	pop32 (ptr);
+	pop32 (index);
+
+	push32 (*:4 (ptr + imm16 * index * 8));
+}
+
+:ARRAY_U16_STORE imm16 is opcode = 75; imm16 {
+	local val:4;	
+	local index:4;
+	local ptr:4;
+
+
+	pop32 (ptr);
+	pop32 (index);
+	pop32 (val);
+
+	*[ram]:4 (ptr + imm16 * index * 8) = val;
+}
+:LOCAL_U16 Local16P is opcode = 76; Local16P {
+	  push32 (Local16P);
+}
+:LOCAL_U16_LOAD Local16 is opcode = 77; Local16 {
+	push32 (Local16);
+}
+:LOCAL_U16_STORE Local16 is opcode = 78; Local16 {
+	local tmp:4;
+	pop32 (tmp);
+
+	Local16 = tmp;
+}
 :STATIC_U16 Static16P is opcode = 79; Static16P {
 	push32(Static16P);
 }
@@ -528,7 +585,7 @@ enterskip: reloc is imm8 [ reloc=inst_next + imm8; ] { export *:4 reloc; }
 	pop32 (a);
 	pop32 (b);
 	
-	if (a == b) goto RelAddr16;
+	if (a != b) goto RelAddr16;
 }
 
 :INE_JZ RelAddr16 is opcode = 88; RelAddr16 {
@@ -537,18 +594,9 @@ enterskip: reloc is imm8 [ reloc=inst_next + imm8; ] { export *:4 reloc; }
 	pop32 (a);
 	pop32 (b);
 	
-	if (a != b) goto RelAddr16;
+	if (a == b) goto RelAddr16;
 }
 :IGT_JZ RelAddr16 is opcode = 89; RelAddr16 {
-	local a:4;
-	local b:4;
-	pop32 (a);
-	pop32 (b);
-	
-	if (a > b) goto RelAddr16;
-
-}
-:IGE_JZ RelAddr16 is opcode = 90; RelAddr16 {
 	local a:4;
 	local b:4;
 	pop32 (a);
@@ -557,13 +605,22 @@ enterskip: reloc is imm8 [ reloc=inst_next + imm8; ] { export *:4 reloc; }
 	if (a >= b) goto RelAddr16;
 
 }
+:IGE_JZ RelAddr16 is opcode = 90; RelAddr16 {
+	local a:4;
+	local b:4;
+	pop32 (a);
+	pop32 (b);
+	
+	if (a > b) goto RelAddr16;
+
+}
 :ILT_JZ RelAddr16 is opcode = 91; RelAddr16 {
 	local a:4;
 	local b:4;
 	pop32 (a);
 	pop32 (b);
 	
-	if (a < b) goto RelAddr16;
+	if (a <= b) goto RelAddr16;
 }
 :ILE_JZ RelAddr16 is opcode = 92; RelAddr16 {
     	local a:4;
@@ -571,7 +628,7 @@ enterskip: reloc is imm8 [ reloc=inst_next + imm8; ] { export *:4 reloc; }
 	pop32 (a);
 	pop32 (b);
 	
-	if (a <= b) goto RelAddr16;
+	if (a < b) goto RelAddr16;
 }
 :CALL Addr24 is opcode = 93; Addr24 {
       call Addr24;
@@ -594,24 +651,7 @@ enterskip: reloc is imm8 [ reloc=inst_next + imm8; ] { export *:4 reloc; }
         push32 (imm24:4);
 }
 
-switchskip: reloc is imm8 [ reloc = inst_next + imm8 * 6; ] { export *:4 reloc; }
-:SWITCH is opcode = 98; switchskip & imm8 {
-      # local counter:4 = imm8:4;
-      # local val:4 = *:4 SP;
-
-      # <loopstart>
-      # if (counter == 0) goto <loopend>;
-
-      # local id:4 = *:4 (inst_next + counter * 6);
-      # local dst:2 = *:2 ((inst_next + counter * 6) + 4);
-
-      # if (id == *:4 SP) goto <loopend>;
-
-      # counter = counter - 1;
-      # goto <loopstart>;
-      
-      # <loopend>
-      # SP = SP - 4;
+:SWITCH is opcode = 98; imm8 {
 
       local distance:4 = imm8 * 6;
       local defaultPos:4 = inst_next + distance;
@@ -642,11 +682,34 @@ switchskip: reloc is imm8 [ reloc = inst_next + imm8 * 6; ] { export *:4 reloc; 
 	pop32(src);
 	pop32(dst);
 
-        strcpy(src, dst, imm8:4);
+        TEXT_ASSIGN_STRING(src, dst, imm8:4);
 }
-:TEXT_LABEL_ASSIGN_INT imm8 is opcode = 102; imm8 unimpl
-:TEXT_LABEL_APPEND_STRING imm8 is opcode = 103; imm8 unimpl
-:TEXT_LABEL_APPEND_INT imm8 is opcode = 104; imm8 unimpl
+:TEXT_LABEL_ASSIGN_INT imm8 is opcode = 102; imm8 {
+	local dst:4;
+	local src:4;
+	pop32(src);
+	pop32(dst);
+
+        TEXT_ASSIGN_INT(src, dst, imm8:4);
+
+}
+:TEXT_LABEL_APPEND_STRING imm8 is opcode = 103; imm8 {
+	local dst:4;
+	local src:4;
+	pop32(src);
+	pop32(dst);
+
+	TEXT_APPEND_STRING(src, dst, imm8:4);
+}
+:TEXT_LABEL_APPEND_INT imm8 is opcode = 104; imm8 {
+	local ptr:4;
+	local int:4;
+	pop32(ptr);
+	pop32(int);
+
+        TEXT_APPEND_INT(ptr, int, imm8:4);
+
+}
 :TEXT_LABEL_COPY is opcode = 105 {
 	local dst:4;
 	local src:4;
@@ -654,11 +717,16 @@ switchskip: reloc is imm8 [ reloc = inst_next + imm8 * 6; ] { export *:4 reloc; 
 	pop32(dst);
 	pop32(val);
 	pop32(src);
-	memset(dst, src, val);
+	TEXT_COPY(dst, src, val);
 }
 :CATCH is opcode = 106 unimpl
 :THROW is opcode = 107 unimpl
-:CALLINDIRECT is opcode = 108 unimpl
+:CALLINDIRECT is opcode = 108 {
+	local ptr:4;
+	pop32(ptr);
+
+	call [ptr];
+}
 :PUSH_CONST_M1 is opcode = 109 {
 	push32(-1:4);
 }

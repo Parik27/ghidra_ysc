@@ -15,7 +15,7 @@
  */
 package ghidraysc;
 
-import java.io.IOException;
+import java.io.IOException; 
 import java.math.BigInteger;
 import java.util.*;
 
@@ -29,12 +29,17 @@ import ghidra.app.util.opinion.LoadSpec;
 import ghidra.app.util.opinion.QueryOpinionService;
 import ghidra.app.util.opinion.QueryResult;
 import ghidra.framework.model.DomainObject;
+import ghidra.program.database.function.OverlappingFunctionException;
 import ghidra.program.model.address.Address;
+import ghidra.program.model.address.AddressOutOfBoundsException;
+import ghidra.program.model.address.AddressSet;
 import ghidra.program.model.lang.RegisterValue;
 import ghidra.program.model.listing.ContextChangeException;
 import ghidra.program.model.listing.Program;
 import ghidra.program.model.mem.MemoryAccessException;
+import ghidra.program.model.symbol.SourceType;
 import ghidra.util.exception.CancelledException;
+import ghidra.util.exception.InvalidInputException;
 import ghidra.util.task.TaskMonitor;
 import yscFormat.YscHeader;
 
@@ -76,7 +81,7 @@ public class GhidraYSCLoader extends AbstractLibrarySupportLoader {
 		// Create a .code block
 		Address start = program.getAddressFactory().getDefaultAddressSpace().getAddress( currentOffset );
 		MemoryBlockUtils.createInitializedBlock(program, false, "code", start, header.CodeSize,
-				"code", "", true, false, false, log);
+				"code", "", true, false, true, log);
 		
 		currentOffset += header.CodeSize;
 		
@@ -182,15 +187,23 @@ public class GhidraYSCLoader extends AbstractLibrarySupportLoader {
 	long getNativeHash(long nativeEnc, short index, long codeSize)
 	{
 		byte rotate = (byte) ((index + codeSize) & 0x3F);
-		return nativeEnc << rotate | nativeEnc >> (64 - rotate);
+		return nativeEnc << rotate | nativeEnc >>> (64 - rotate);
 	}
 	
-	private void readNatives (BinaryReader br, YscHeader header) throws IOException
+	private void readNatives (Program program, BinaryReader br, YscHeader header) throws IOException, InvalidInputException, AddressOutOfBoundsException, OverlappingFunctionException
 	{
 		long[] natives = br.readLongArray(header.NativesPointer, header.NativesCount);
 		short index = 0;
+		
+		Address addr = program.getAddressFactory().getDefaultAddressSpace().getAddress(NO);
 		for (long nat : natives) {
-			System.out.println(getNativeHash (nat, index++, header.CodeSize));
+			program.getFunctionManager().createFunction(
+					String.format("n_%016X", getNativeHash (nat, index, header.CodeSize)), addr,
+					new AddressSet (addr, addr.add(7)), SourceType.IMPORTED);
+			System.out.println(getNativeHash (nat, index, header.CodeSize));
+			
+			index++;			
+			addr = addr.add(8);
 		}
 	}
 	
@@ -204,17 +217,23 @@ public class GhidraYSCLoader extends AbstractLibrarySupportLoader {
 		
 		try {
 			loadCode (br, header, program, log);			
-			STO = addBlock (br.readByteArray(header.StaticsPointer, header.StaticCount * 4), ".statics", program, log);
+			STO = addBlock (br.readByteArray(header.StaticsPointer, header.StaticCount * 8), ".statics", program, log);
 			STRO = loadStrings (br, header, program, log);
 			NO = addBlock (".natives", program, log, header.NativesCount * 8, "ram", false);
 			GLO = addBlock (".globals", program, log, 0x100000);
-			readNatives (br, header);
 			
 			setRegisterValues(program, header);
+			readNatives (program, br, header);
 			
 		} catch (MemoryAccessException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (InvalidInputException e) {
+			e.printStackTrace();
+		} catch (AddressOutOfBoundsException e) {
+			e.printStackTrace();
+		} catch (OverlappingFunctionException e) {
 			e.printStackTrace();
 		}
 	}
@@ -225,8 +244,7 @@ public class GhidraYSCLoader extends AbstractLibrarySupportLoader {
 		List<Option> list =
 			super.getDefaultOptions(provider, loadSpec, domainObject, isLoadIntoProgram);
 
-		// TODO: If this loader has custom options, add them to 'list'
-		list.add(new Option("Option name goes here", "Default option value goes here"));
+		list.add(new Option("Global Variables Size", 0x800000));
 
 		return list;
 	}

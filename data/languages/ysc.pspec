@@ -3,7 +3,7 @@
 <processor_spec>
 	<programcounter register="IP"/>
 	<default_symbols>
-		<symbol name="entry" address="ram:00000000" type="code" entry="true"/>
+		<symbol name="main" address="ram:0x0000" type="code" entry="true"/>
 	</default_symbols>
 	<register_data>
 		<register name="RV"/>

@@ -345,45 +345,31 @@ enterskip: reloc is imm8 [ reloc=inst_next + imm8; ] { export *:4 reloc; }
 :LOAD_N is opcode = 50 {
 
 	local numItems:4;
+	local counter:4 = 0;
 	local ptr:4;
 
 	pop32 (ptr);
 	pop32 (numItems);
 
 	memcpy(SP, ptr, numItems * 4);
-
-	# numItems = numItems - 1;
-
-	# <loopstart>
-	# if (numItems s< 0) goto <loopend>;
-	
-	# *:4 (SP - numItems * 4) = *:4 (ptr + numItems * 4);
-	
-	# numItems = numItems - 1;
-
-	# goto <loopstart>;
-	# <loopend>
-
-	# SP = SP - (numItems * 4) + 4;
 	
 }
 :STORE_N is opcode = 51 {
+	 
 	local numItems:4;
 	local ptr:4;
 
 	pop32 (ptr);
 	pop32 (numItems);
 
-	memcpy(ptr, SP, numItems * 4);
+	<start>
+	if (numItems == 0) goto inst_next;
+	*:4 ptr = *:4 SP;
 
-	# <loopstart>
-	# if (numItems == 0) goto <loopend>;
-	
-	# *:4 ptr + numItems * 4 = *:4 (SP - (numItems * 4));
-	# numItems = numItems - 1;
-
-	# goto <loopstart>;
-	# <loopend>
+	ptr = ptr + 4;
+	SP = SP + 4;
+	numItems = numItems - 1;
+	goto <start>;
 }
 :ARRAY_U8 imm8 is opcode = 52; imm8 {
 	local index:4;

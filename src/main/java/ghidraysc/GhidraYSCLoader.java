@@ -106,7 +106,7 @@ public class GhidraYSCLoader extends AbstractLibrarySupportLoader {
 		// Create a .strings block
 		Address start = program.getAddressFactory().getAddressSpace("ram").getAddress( currentOffset );
 		MemoryBlockUtils.createInitializedBlock(program, false, "strings", start, header.StringSize,
-				"strings", "", true, true, false, log);
+				"strings", "", true, false, false, log);
 		
 		currentOffset += header.StringSize;
 		

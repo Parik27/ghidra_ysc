@@ -3,6 +3,13 @@
 <compiler_spec>
     <data_organization>
 	<pointer_size value="4" />
+        <size_alignment_map>
+            <entry size="1" alignment="8" />
+            <entry size="2" alignment="8" />
+            <entry size="4" alignment="8" />
+            <entry size="8" alignment="8" />
+        </size_alignment_map>
+
     </data_organization>
     <global>
         <range space="ram"/>
@@ -20,19 +27,21 @@
         <varnode space="stack" offset="0" size="4"/>
     </returnaddress>
     <default_proto>
-        <prototype name="default" extrapop="unknown" stackshift="4">
+        <prototype name="__stdcall" extrapop="unknown" stackshift="4">
             <input>
             	<pentry minsize="1" maxsize="500" align="4">
             	    <addr offset="0" space="stack"/>
             	</pentry>
             </input>
             <output>
-            	<pentry minsize="1" maxsize="500">
+                <pentry minsize="4" maxsize="4" metatype="ptr">
+                    <register name="RPTR"/>
+                </pentry>
+            	<pentry minsize="1" maxsize="4">
                     <register name="RV"/>
                 </pentry>
             </output>
             <unaffected>
-                <varnode space="ram" offset="0" size="4"/>
                 <register name="SP"/>
                 <register name="FP"/>
                 <register name="NO"/>
@@ -40,7 +49,12 @@
                 <register name="STO"/>
                 <register name="GLO"/>
             </unaffected>
+            <pcode inject="uponreturn" dynamic="true"/>
         </prototype>
     </default_proto>
+
+    <callotherfixup targetop="memcpy">
+        <pcode dynamic="true"/>
+   </callotherfixup>
     
 </compiler_spec>

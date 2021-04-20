@@ -56,8 +56,7 @@ public class YSCSwitchAnalyzer extends AbstractAnalyzer {
 
 	@Override
 	public boolean canAnalyze(Program program) {
-		return false;
-		//return program.getLanguage().getProcessor().toString().equals("YSC");
+		return program.getLanguage().getProcessor().toString().equals("YSC");
 	}
 
 	@Override
@@ -98,9 +97,7 @@ public class YSCSwitchAnalyzer extends AbstractAnalyzer {
 				}
 				
 				Function function = program.getListing().getFunctionContaining(addr);
-				JumpTable jumpTable = new JumpTable (addr, dests, true);
 				if (function != null) {
-					jumpTable.writeOverride(function);
 					CreateFunctionCmd.fixupFunctionBody(program, function, monitor);
 				}
 				
@@ -109,9 +106,6 @@ public class YSCSwitchAnalyzer extends AbstractAnalyzer {
 				log.appendException(e);
 				return false;
 			} catch (AddressOutOfBoundsException e) {
-				log.appendException(e);
-				return false;
-			} catch (InvalidInputException e) {
 				log.appendException(e);
 				return false;
 			}

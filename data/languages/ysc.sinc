@@ -52,8 +52,6 @@ Local16: local16 is imm16 [ local16 = imm16 * 4; ] { local tmp:4 = FP - local16 
 Local16P: local16 is imm16 [ local16 = imm16 * 4; ] { local tmp:4 = FP - local16 - 4; export tmp; }
 
 
-define pcodeop native;
-define pcodeop strcpy;
 define pcodeop TEXT_COPY;
 define pcodeop TEXT_ASSIGN_STRING;
 define pcodeop TEXT_APPEND_STRING;
@@ -98,46 +96,85 @@ macro pop32(ret32) {
 :IMOD is opcode = 5 {
       local tmp:4 = *:4 SP;
       SP = SP + 4;
-      *SP:4 = *SP:4 / tmp;
+      *SP:4 = *SP:4 % tmp;
 }
 :INOT is opcode = 6 {
       local a:4;
+      local tmp:4;
       pop32(a);
-      push32(a == 0);
+
+      tmp = zext(a == 0:4);
+      push32(tmp);
 }
 :INEG is opcode = 7 {
       *SP:4 = *SP:4 * -1:4;
 }
 :IEQ is opcode = 8 {
-     local tmp:4 = *:4 SP;
-	SP = SP + 4;
-	*SP:4 = *SP:4 == tmp;
+     	local a:4;
+	local b:4;
+	local res:4;
+
+	pop32(a);
+	pop32(b);
+
+	res = zext(a == b);
+	push32(res);
 }
 
 :INE is opcode = 9 {
-     local tmp:4 = *:4 SP;
-     SP = SP + 4;
-     *SP:4 = *SP:4 != tmp;
+     	local a:4;
+	local b:4;
+	local res:4;
+
+	pop32(a);
+	pop32(b);
+
+	res = zext(a != b);
+	push32(res);
 }
 :IGT is opcode = 10 {
-	local tmp:4 = *:4 SP;
-	SP = SP + 4;
-	*SP:4 = tmp < *SP:4;
+     	local a:4;
+	local b:4;
+	local res:4;
+
+	pop32(a);
+	pop32(b);
+
+	res = zext(a < b);
+	push32(res);
 }
 :IGE is opcode = 11 {
-	local tmp:4 = *:4 SP;
-	SP = SP + 4;
-	*SP:4 = tmp <= *SP:4;
+     	local a:4;
+	local b:4;
+	local res:4;
+
+	pop32(a);
+	pop32(b);
+
+	res = zext(a <= b);
+	push32(res);
 }
 :ILT is opcode = 12 {
-	local tmp:4 = *:4 SP;
-	SP = SP + 4;
-	*SP:4 = tmp > *SP:4;
+     	local a:4;
+	local b:4;
+	local res:4;
+
+	pop32(a);
+	pop32(b);
+
+	res = zext(a > b);
+	push32(res);
 }
 :ILE is opcode = 13 {
-	local tmp:4 = *:4 SP;
-	SP = SP + 4;
-	*SP:4 = tmp >= *SP:4;
+     	local a:4;
+	local b:4;
+	local res:4;
+
+	pop32(a);
+	pop32(b);
+
+	res = zext(a >= b);
+	push32(res);
 }
 :FADD is opcode = 14 {
 	local tmp:4 = *:4 SP;
@@ -182,54 +219,78 @@ macro pop32(ret32) {
 	*SP:4 = tmp f!= *SP:4;
 }
 :FGT is opcode = 22 {
-	local tmp:4 = *:4 SP;
-	SP = SP + 4;
-	*SP:4 = tmp f< *SP:4;
+     	local a:4;
+	local b:4;
+	local res:4;
+
+	pop32(a);
+	pop32(b);
+
+	res = zext(a f< b);
+	push32(res);
 }
 :FGE is opcode = 23 {
-	local tmp:4 = *:4 SP;
-	SP = SP + 4;
-	*SP:4 = tmp f<= *SP:4;
+     	local a:4;
+	local b:4;
+	local res:4;
+
+	pop32(a);
+	pop32(b);
+
+	res = zext(a f<= b);
+	push32(res);
 }
 :FLT is opcode = 24 {
-	local tmp:4 = *:4 SP;
-	SP = SP + 4;
-	*SP:4 = tmp f> *SP:4;
+     	local a:4;
+	local b:4;
+	local res:4;
+
+	pop32(a);
+	pop32(b);
+
+	res = zext(a f> b);
+	push32(res);
 }
 :FLE is opcode = 25 {
-	local tmp:4 = *:4 SP;
-	SP = SP + 4;
-	*SP:4 = tmp f>= *SP:4;
+     	local a:4;
+	local b:4;
+	local res:4;
+
+	pop32(a);
+	pop32(b);
+
+	res = zext(a f>= b);
+	push32(res);
 }
 :VADD is opcode = 26 {
-    *:4 SP+20 = *:4 SP+20 f+ *:4 SP+8;
-    *:4 SP+16 = *:4 SP+16 f+ *:4 SP+4;
-    *:4 SP+12 = *:4 SP+12 f+ *:4 SP;
+    *:4 (SP+20) = *:4 (SP+20) f+ *:4 (SP+8);
+    *:4 (SP+16) = *:4 (SP+16) f+ *:4 (SP+4);
+    *:4 (SP+12) = *:4 (SP+12) f+ *:4 (SP);
     SP = SP + 12;
 
 }
 :VSUB is opcode = 27 {
-    *:4 SP+20 = *:4 SP+20 f- *:4 SP+8;
-    *:4 SP+16 = *:4 SP+16 f- *:4 SP+4;
-    *:4 SP+12 = *:4 SP+12 f- *:4 SP;
+    *:4 (SP+20) = *:4 (SP+20) f- *:4 (SP+8);
+    *:4 (SP+16) = *:4 (SP+16) f- *:4 (SP+4);
+    *:4 (SP+12) = *:4 (SP+12) f- *:4 (SP);
     SP = SP + 12;
 }
 :VMUL is opcode = 28 {
-    *:4 SP+20 = *:4 SP+20 f* *:4 SP+8;
-    *:4 SP+16 = *:4 SP+16 f* *:4 SP+4;
-    *:4 SP+12 = *:4 SP+12 f* *:4 SP;
+    *:4 (SP+20) = *:4 (SP+20) f* *:4 (SP+8);
+    *:4 (SP+16) = *:4 (SP+16) f* *:4 (SP+4);
+    *:4 (SP+12) = *:4 (SP+12) f* *:4 (SP);
     SP = SP + 12;
 }
 :VDIV is opcode = 29 {
-    *:4 SP+20 = *:4 SP+20 f/ *:4 SP+8;
-    *:4 SP+16 = *:4 SP+16 f/ *:4 SP+4;
-    *:4 SP+12 = *:4 SP+12 f/ *:4 SP;
+    *:4 (SP+20) = *:4 (SP+20) f/ *:4 (SP+8);
+    *:4 (SP+16) = *:4 (SP+16) f/ *:4 (SP+4);
+    *:4 (SP+12) = *:4 (SP+12) f/ *:4 (SP);
     SP = SP + 12;
 }
 :VNEG is opcode = 30 {
-    *:4 SP+8 = int2float(-1:4) f* *:4 SP+8;
-    *:4 SP+4 = int2float(-1:4) f* *:4 SP+4;
-    *:4 SP = int2float(-1:4) f* *:4 SP;
+    *:4 (SP+8) = int2float(-1:4) f* *:4 (SP+8);
+    *:4 (SP+4) = int2float(-1:4) f* *:4 (SP+4);
+    *:4 (SP) = int2float(-1:4) f* *:4 (SP);
 
 }
 :IAND is opcode = 31 {
@@ -262,8 +323,8 @@ macro pop32(ret32) {
 :F2V is opcode = 36 {
       local tmp:4 = *SP:4;
       *SP:4 = tmp;
-      *:4 SP - 4 = tmp;
-      *:4 SP - 8 = tmp;
+      *:4 (SP - 4) = tmp;
+      *:4 (SP - 8) = tmp;
       SP = SP - 8;
 }
 :PUSH_CONST_U8 imm8 is opcode = 37; imm8 {
@@ -287,7 +348,7 @@ macro pop32(ret32) {
       push32 (tmp);
 }
 :DUP is opcode = 42 {
-     *:4 SP - 4 = *SP:4;
+     *:4 (SP - 4) = *SP:4;
      SP = SP - 4;
 }
 :DROP is opcode = 43 {
@@ -298,7 +359,7 @@ macro pop32(ret32) {
 }
 :NATIVE nativeArgs, imm16 is opcode = 44; nativeArgs & nativeRet; imm16 {
 	call [NO + ((imm16>>8&0xFFFF) | (imm16<<8&0xFFFF)) * 8];
-	push32 (RV:4);
+	#push32 (RV:4);
 }
 
 enterskip: reloc is imm8 [ reloc=inst_next + imm8; ] { export *:4 reloc; } 
@@ -308,6 +369,7 @@ enterskip: reloc is imm8 [ reloc=inst_next + imm8; ] { export *:4 reloc; }
 }
 
 :LEAVE imm8, imm8_2 is opcode = 46; imm8; imm8_2 {
+      RPTR = *:4 (SP + ((imm8_2:4 - 1) * 4));
       RV = *:4 (SP + ((imm8_2:4 - 1) * 4));
       SP = FP;
       return [0:4];
@@ -351,8 +413,8 @@ enterskip: reloc is imm8 [ reloc=inst_next + imm8; ] { export *:4 reloc; }
 	pop32 (ptr);
 	pop32 (numItems);
 
+	#SP = SP - numItems * 4:4;
 	memcpy(SP, ptr, numItems * 4);
-	
 }
 :STORE_N is opcode = 51 {
 	 
@@ -362,14 +424,7 @@ enterskip: reloc is imm8 [ reloc=inst_next + imm8; ] { export *:4 reloc; }
 	pop32 (ptr);
 	pop32 (numItems);
 
-	<start>
-	if (numItems == 0) goto inst_next;
-	*:4 ptr = *:4 SP;
-
-	ptr = ptr + 4;
-	SP = SP + 4;
-	numItems = numItems - 1;
-	goto <start>;
+	memcpy(ptr, SP, numItems * 4);
 }
 :ARRAY_U8 imm8 is opcode = 52; imm8 {
 	local index:4;
@@ -561,7 +616,7 @@ enterskip: reloc is imm8 [ reloc=inst_next + imm8; ] { export *:4 reloc; }
 	goto RelAddr16;
 }
 :JZ RelAddr16 is opcode = 86; RelAddr16 {
-	local tmp:1;
+	local tmp:4;
 	pop32(tmp);
 	if(tmp == 0) goto RelAddr16;
 }
@@ -618,7 +673,7 @@ enterskip: reloc is imm8 [ reloc=inst_next + imm8; ] { export *:4 reloc; }
 }
 :CALL Addr24 is opcode = 93; Addr24 {
       call Addr24;
-      push32 (RV:4);
+      #push32 (RV:4);
 }
 :GLOBAL_U24 Global24P is opcode = 94; Global24P {
       push32(Global24P:4);

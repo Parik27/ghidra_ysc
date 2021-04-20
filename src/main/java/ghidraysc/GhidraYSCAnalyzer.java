@@ -40,6 +40,11 @@ public class GhidraYSCAnalyzer extends AbstractAnalyzer {
 	public boolean getDefaultEnablement(Program program) {
 		return true;
 	}
+
+	@Override
+	public boolean canAnalyze(Program program) {
+		return program.getLanguage().getProcessor().toString().equals("YSC");
+	}
 	
 	@Override
 	public boolean added(Program program, AddressSetView set, TaskMonitor monitor, MessageLog log)
